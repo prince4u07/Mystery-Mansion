@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mystery Mansion | A Graph Investigation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="grain"></div>
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="Mystery Mansion home">
+      <span class="brand-mark">MM</span>
+      <span>MYSTERY<br><b>MANSION</b></span>
+    </a>
+    <div class="case-status"><span class="status-dot"></span> CASE 04 / ACTIVE</div>
+    <button class="icon-button" id="soundToggle" aria-label="Toggle sound">◒</button>
+  </header>
+
+  <main class="app-shell">
+    <aside class="sidebar">
+      <div class="eyebrow">THE BLACKWOOD FILES</div>
+      <h1>Find the truth<br><em>before midnight.</em></h1>
+      <p class="intro">A living mansion. A hidden motive. Trace the evidence through its rooms and name the culprit.</p>
+      <div class="level-list" id="levelList"></div>
+      <div class="sidebar-footer">
+        <span>FIELD MANUAL 1.0</span>
+        <span>◈ 2026</span>
+      </div>
+    </aside>
+
+    <section class="game-area">
+      <div class="game-toolbar">
+        <div class="location"><span class="location-pin">+</span><div><small>CURRENT LOCATION</small><strong id="currentRoom">The Entrance Hall</strong></div></div>
+        <div class="timer-wrap"><small>TIME REMAINING</small><strong id="timer">06:42</strong></div>
+        <button class="lab-button" id="labButton" title="Open field notebook"><span>⌁</span> FIELD NOTEBOOK</button>
+      </div>
+
+      <div class="map-frame">
+        <div class="map-heading"><span>BLACKWOOD ESTATE / FLOOR PLAN</span><span id="mapCount">01 — 05 ROOMS</span></div>
+        <canvas id="mansionCanvas" aria-label="Interactive mansion map"></canvas>
+        <div class="map-legend"><span><i class="legend-current"></i> YOU ARE HERE</span><span><i class="legend-clue"></i> EVIDENCE</span><span><i class="legend-locked"></i> LOCKED</span><strong>CLICK A ROOM TO INVESTIGATE</strong></div>
+      </div>
+
+      <div class="evidence-strip">
+        <div class="strip-title"><span>CASE NOTES</span><b id="clueCount">0 / 3</b></div>
+        <div class="clue-list" id="clueList"></div>
+        <button class="primary-button" id="accuseButton">MAKE AN ACCUSATION <span>→</span></button>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal-backdrop hidden" id="labModal">
+    <section class="modal lab-modal" role="dialog" aria-modal="true" aria-labelledby="labTitle">
+      <button class="close-button" data-close="labModal" aria-label="Close algorithm lab">×</button>
+      <div class="eyebrow">GRAPH THEORY / LIVE TRACE</div>
+      <h2 id="labTitle">Algorithm <em>Lab</em></h2>
+      <p class="modal-copy">Watch the search strategies navigate the mansion graph. The path is the same mystery, rendered as data.</p>
+      <div class="algorithm-tabs" id="algorithmTabs">
+        <button class="algorithm-tab active" data-algorithm="BFS">BFS</button>
+        <button class="algorithm-tab" data-algorithm="DFS">DFS</button>
+        <button class="algorithm-tab" data-algorithm="DIJKSTRA">DIJKSTRA</button>
+        <button class="algorithm-tab" data-algorithm="A*">A*</button>
+      </div>
+      <div class="lab-grid">
+        <div class="graph-panel"><canvas id="graphCanvas"></canvas></div>
+        <div class="stats-panel">
+          <div class="stat-row"><span>ALGORITHM</span><b id="statAlgorithm">BFS</b></div>
+          <div class="stat-row"><span>STARTING ROOM</span><b>HALLWAY</b></div>
+          <div class="stat-row"><span>TARGET</span><b>BASEMENT</b></div>
+          <div class="stat-row"><span>VISITED NODES</span><b id="statVisited">0</b></div>
+          <div class="stat-row"><span>EDGES CHECKED</span><b id="statEdges">0</b></div>
+          <div class="stat-row"><span>PATH LENGTH</span><b id="statPath">5</b></div>
+          <div class="stat-row"><span>EXECUTION TIME</span><b id="statTime">0.0 ms</b></div>
+          <button class="primary-button replay-button" id="replayButton">RUN TRACE <span>↻</span></button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal-backdrop hidden" id="accuseModal">
+    <section class="modal accuse-modal" role="dialog" aria-modal="true" aria-labelledby="accuseTitle">
+      <button class="close-button" data-close="accuseModal" aria-label="Close accusation">×</button>
+      <div class="eyebrow">FINAL STATEMENT / CASE 04</div>
+      <h2 id="accuseTitle">Who did <em>it?</em></h2>
+      <p class="modal-copy">Review the evidence, trust your route, and commit to one name.</p>
+      <div class="suspect-grid" id="suspectGrid"></div>
+      <div class="accuse-result hidden" id="accuseResult"></div>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
