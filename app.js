@@ -1,62 +1,41 @@
-const levels = [
-  { name: 'The Entrance', detail: '05 ROOMS / 03 CLUES', rooms: 5, clues: 3, suspects: 1 },
-  { name: 'The Investigation', detail: '10 ROOMS / 05 CLUES', rooms: 10, clues: 5, suspects: 3 },
-  { name: 'The Hidden Floor', detail: '15 ROOMS / PUZZLES', rooms: 15, clues: 7, suspects: 4 },
-  { name: 'The Final Mystery', detail: '20 ROOMS / 05 SUSPECTS', rooms: 20, clues: 9, suspects: 5 }
-];
-const rooms = [
-  { id: 'hall', name: 'The Entrance Hall', x: .17, y: .51, clue: 'A muddy footprint points east.', kind: 'start' },
-  { id: 'study', name: 'The Study', x: .38, y: .22, clue: 'A torn letter: “Meet me below.”' },
-  { id: 'gallery', name: 'Portrait Gallery', x: .63, y: .20, clue: 'One portrait has fresh paint.' },
-  { id: 'dining', name: 'Dining Room', x: .40, y: .76, clue: 'The silver clock stopped at 11:17.' },
-  { id: 'basement', name: 'The Basement', x: .76, y: .55, clue: 'Hidden evidence: a blackwood button.' }
-];
-const links = [['hall','study'], ['hall','dining'], ['study','gallery'], ['dining','basement'], ['gallery','basement']];
-const state = { level: 0, current: 'hall', found: [], seconds: 402, algorithm: 'BFS', traceTimer: null, sound: true };
-const $ = (selector) => document.querySelector(selector);
-const canvas = $('#mansionCanvas');
+const canvas = document.querySelector('#gameCanvas');
 const ctx = canvas.getContext('2d');
-const extraNames = ['Library', 'Conservatory', 'Servants\' Quarters', 'West Stair', 'Music Room', 'Winter Garden', 'Observatory', 'Wine Cellar', 'Boiler Room', 'Hidden Archive', 'Red Corridor', 'Chapel', 'Clock Tower', 'East Stair', 'The Vault'];
-function activeRooms() {
-  const count = levels[state.level].rooms;
-  return rooms.concat(extraNames.slice(0, count - rooms.length).map((name, index) => ({ id: `extra-${index}`, name, x: .5 + .38 * Math.cos(index * 2.4), y: .5 + .36 * Math.sin(index * 2.4), clue: `A detail in the ${name.toLowerCase()} shifts the case.` })));
-}
-function activeLinks() {
-  const visible = activeRooms();
-  return links.concat(visible.slice(5).map((room, index) => [visible[index === 0 ? 4 : index + 4].id, room.id]));
-}
-
-function drawMansion() {
-  const width = canvas.clientWidth, height = canvas.clientHeight, ratio = window.devicePixelRatio || 1;
-  if (canvas.width !== width * ratio || canvas.height !== height * ratio) { canvas.width = width * ratio; canvas.height = height * ratio; }
-  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-  ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = '#e8e1d4'; ctx.fillRect(0, 0, width, height);
-  ctx.strokeStyle = '#d2cabc'; ctx.lineWidth = 1;
-  for (let x = 0; x < width; x += 28) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke(); }
-  for (let y = 0; y < height; y += 28) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke(); }
-  const point = room => ({ x: room.x * width, y: room.y * height });
-  const visibleRooms = activeRooms();
-  activeLinks().forEach(([a, b]) => { const from = point(visibleRooms.find(room => room.id === a)), to = point(visibleRooms.find(room => room.id === b)); ctx.strokeStyle = '#879099'; ctx.lineWidth = 3; ctx.setLineDash([6, 5]); ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y); ctx.stroke(); ctx.setLineDash([]); });
-  visibleRooms.forEach(room => { const { x, y } = point(room); const isCurrent = room.id === state.current; const isFound = state.found.includes(room.id); const radius = visibleRooms.length > 10 ? (isCurrent ? 20 : 13) : (isCurrent ? 29 : 24); ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.fillStyle = isCurrent ? '#e36f55' : '#f4f0e8'; ctx.fill(); ctx.strokeStyle = isCurrent ? '#bc4b38' : '#53616b'; ctx.lineWidth = 2; ctx.stroke(); if (room.clue && !isFound) { ctx.fillStyle = '#f2c96d'; ctx.fillRect(x + radius - 2, y - radius, 10, 10); ctx.strokeStyle = '#14202b'; ctx.strokeRect(x + radius - 2, y - radius, 10, 10); } ctx.fillStyle = isCurrent ? '#fff9ed' : '#14202b'; ctx.font = `500 ${visibleRooms.length > 10 ? 8 : 11}px DM Mono`; ctx.textAlign = 'center'; ctx.fillText(room.name.replace('The ', '').replace(' Room', ''), x, y + radius + 15); });
-  ctx.textAlign = 'left'; ctx.fillStyle = '#bc4b38'; ctx.font = '500 10px DM Mono'; ctx.fillText('N', 14, 23); ctx.beginPath(); ctx.moveTo(18, 29); ctx.lineTo(18, 43); ctx.strokeStyle = '#bc4b38'; ctx.stroke();
-}
-function renderLevels() { $('#levelList').innerHTML = levels.map((level, index) => `<div class="level ${index === state.level ? 'active' : ''}" data-level="${index}"><span class="level-number">0${index + 1}</span><span class="level-name">${level.name}</span><span class="level-detail">${level.detail.split(' / ')[0]}</span></div>`).join(''); document.querySelectorAll('.level').forEach(item => item.addEventListener('click', () => selectLevel(Number(item.dataset.level)))); }
-function selectLevel(level) { state.level = level; state.current = 'hall'; state.found = []; renderLevels(); updateUI(); drawMansion(); }
-function updateUI() { const activeLevel = levels[state.level]; $('#currentRoom').textContent = activeRooms().find(room => room.id === state.current).name; $('#clueCount').textContent = `${state.found.length} / ${activeLevel.clues}`; $('#mapCount').textContent = `01 — ${String(activeLevel.rooms).padStart(2, '0')} ROOMS`; $('#clueList').innerHTML = activeRooms().slice(0, Math.min(3, activeLevel.clues)).map((room, index) => `<div class="clue ${state.found.includes(room.id) ? 'found' : ''}"><small>CLUE 0${index + 1} ${state.found.includes(room.id) ? '/ FOUND' : '/ UNKNOWN'}</small>${state.found.includes(room.id) ? room.clue : 'Evidence undiscovered'}</div>`).join(''); }
-function moveTo(room) { state.current = room.id; if (room.clue && !state.found.includes(room.id)) state.found.push(room.id); updateUI(); drawMansion(); }
-function formatTime(seconds) { return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`; }
-function tick() { if (state.seconds > 0) state.seconds--; $('#timer').textContent = formatTime(state.seconds); if (state.seconds === 0) showResult('⏰ TIME\'S UP', 'The mansion is locked down. CASE UNSOLVED.'); }
-canvas.addEventListener('click', event => { const rect = canvas.getBoundingClientRect(); const x = (event.clientX - rect.left) / rect.width, y = (event.clientY - rect.top) / rect.height; const clicked = activeRooms().find(room => Math.hypot(room.x - x, room.y - y) < .07); if (clicked) moveTo(clicked); });
-
-const graphNodes = [{ id: 'H', x: .12, y: .52 }, { id: 'S', x: .32, y: .2 }, { id: 'D', x: .32, y: .8 }, { id: 'G', x: .55, y: .2 }, { id: 'B', x: .55, y: .8 }, { id: 'T', x: .83, y: .52 }];
-const graphLinks = [[0,1],[0,2],[1,3],[2,4],[3,5],[4,5]]; let traceStep = 0; let traceOrder = [0, 1, 2, 3, 4, 5];
-function drawGraph() { const graph = $('#graphCanvas'), width = graph.clientWidth, height = graph.clientHeight, ratio = window.devicePixelRatio || 1; graph.width = width * ratio; graph.height = height * ratio; const graphCtx = graph.getContext('2d'); graphCtx.setTransform(ratio, 0, 0, ratio, 0, 0); graphCtx.fillStyle = '#e9e2d5'; graphCtx.fillRect(0,0,width,height); graphLinks.forEach(([a,b]) => { const from=graphNodes[a], to=graphNodes[b]; graphCtx.strokeStyle='#a7aaa4'; graphCtx.lineWidth=2; graphCtx.beginPath(); graphCtx.moveTo(from.x*width,from.y*height); graphCtx.lineTo(to.x*width,to.y*height); graphCtx.stroke(); }); graphNodes.forEach((node,index) => { const visited = traceOrder.slice(0, traceStep + 1).includes(index); graphCtx.beginPath(); graphCtx.arc(node.x*width,node.y*height, visited ? 17 : 13, 0, Math.PI*2); graphCtx.fillStyle = index === 5 && visited ? '#a7d9c7' : visited ? '#e36f55' : '#f4f0e8'; graphCtx.fill(); graphCtx.strokeStyle='#14202b'; graphCtx.stroke(); graphCtx.fillStyle='#14202b'; graphCtx.font='500 11px DM Mono'; graphCtx.textAlign='center'; graphCtx.fillText(node.id, node.x*width, node.y*height+4); }); }
-async function runTrace() { clearInterval(state.traceTimer); traceStep = 0; $('#statVisited').textContent = '0'; $('#statEdges').textContent = '0'; drawGraph(); try { const response = await fetch(`/api/algorithm?name=${encodeURIComponent(state.algorithm)}`); const result = await response.json(); traceOrder = result.visited.map(node => ['hall','study','dining','gallery','basement'].indexOf(node)); $('#statPath').textContent = result.path_length; $('#statEdges').textContent = result.edges_checked; } catch (error) { traceOrder = [0, 1, 2, 3, 4]; } state.traceTimer = setInterval(() => { traceStep++; $('#statVisited').textContent = Math.min(traceStep + 1, traceOrder.length); $('#statTime').textContent = `${(traceStep * .4).toFixed(1)} ms`; drawGraph(); if (traceStep >= traceOrder.length - 1) clearInterval(state.traceTimer); }, 400); }
-function openModal(id) { $(`#${id}`).classList.remove('hidden'); if (id === 'labModal') { setTimeout(() => { drawGraph(); runTrace(); }, 30); } }
-function closeModal(id) { $(`#${id}`).classList.add('hidden'); }
-function showResult(title, message) { $('#accuseResult').innerHTML = `<h3>${title}</h3><p>${message}</p>`; $('#accuseResult').classList.remove('hidden'); openModal('accuseModal'); }
-$('#labButton').addEventListener('click', () => openModal('labModal')); $('#replayButton').addEventListener('click', runTrace); $('#accuseButton').addEventListener('click', () => openModal('accuseModal')); document.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', () => closeModal(button.dataset.close))); document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.addEventListener('click', event => { if (event.target === backdrop) closeModal(backdrop.id); })); $('#soundToggle').addEventListener('click', event => { state.sound = !state.sound; event.currentTarget.textContent = state.sound ? '◒' : '○'; });
-$('#suspectGrid').innerHTML = [{name:'Eleanor Voss', role:'THE HEIRESS', icon:'♢', correct:false},{name:'Dr. Elias Reed', role:'THE PHYSICIAN', icon:'✚', correct:true},{name:'Arthur Bell', role:'THE GROUNDSKEEPER', icon:'⌂', correct:false}].map(suspect => `<button class="suspect" data-correct="${suspect.correct}"><span class="portrait">${suspect.icon}</span><span><b>${suspect.name}</b><small>${suspect.role}</small></span></button>`).join(''); document.querySelectorAll('.suspect').forEach(button => button.addEventListener('click', () => button.dataset.correct === 'true' ? showResult('🎉 CASE SOLVED!', `You found the hidden evidence and identified the real culprit.<br><br>Score: ${700 + state.found.length * 80}<br>Rooms explored: ${state.found.length + 1}<br>Clues found: ${state.found.length}`) : showResult('❌ WRONG SUSPECT', 'The real culprit escaped.<br><br>CASE FAILED.')));
-document.querySelectorAll('.algorithm-tab').forEach(tab => tab.addEventListener('click', () => { document.querySelectorAll('.algorithm-tab').forEach(item => item.classList.remove('active')); tab.classList.add('active'); state.algorithm = tab.dataset.algorithm; $('#statAlgorithm').textContent = state.algorithm; $('#statPath').textContent = state.algorithm === 'DFS' ? '7' : state.algorithm === 'A*' ? '5' : '5'; runTrace(); }));
-window.addEventListener('resize', () => { drawMansion(); if (!$('#labModal').classList.contains('hidden')) drawGraph(); }); renderLevels(); updateUI(); drawMansion(); setInterval(tick, 1000);
+const scoreEl = document.querySelector('#score');
+const highScoreEl = document.querySelector('#highScore');
+const livesEl = document.querySelector('#lives');
+const message = document.querySelector('#message');
+const messageTitle = document.querySelector('#messageTitle');
+const startButton = document.querySelector('#startButton');
+const cellSize = 24;
+const maze = ['#####################','#.........#.........#','#.###.###.#.###.###.#','#o#...#...#...#...#o#','#.###.#.#####.#.###.#','#.....#...#...#.....#','#####.###.#.###.#####','#...................#','#####.###.#.###.#####','#.....#...#...#.....#','#.###.#.#####.#.###.#','#o#...#...#...#...#o#','#.###.###.#.###.###.#','#.........#.........#','#####################'];
+const rows = maze.length;
+const columns = 21;
+const directions = { ArrowUp: [-1, 0], w: [-1, 0], ArrowDown: [1, 0], s: [1, 0], ArrowLeft: [0, -1], a: [0, -1], ArrowRight: [0, 1], d: [0, 1] };
+const levels = { easy: { label: 'EASY MODE', ghosts: 1, speed: 330 }, medium: { label: 'MEDIUM MODE', ghosts: 2, speed: 235 }, hard: { label: 'HARD MODE', ghosts: 3, speed: 155 } };
+const ghostBlueprints = [{ color: '#db5147', start: [7, 9], algorithm: 'A*' }, { color: '#e1819d', start: [7, 10], algorithm: 'BFS' }, { color: '#5683c2', start: [7, 11], algorithm: 'DFS' }];
+let level = 'easy'; let pellets; let pacman; let ghosts; let score; let lives; let highScore = Number(localStorage.getItem('pacmanHighScore') || 0); let state = 'ready'; let frightened = 0; let timer;
+const point = (row, column) => ({ row, column });
+const cellKey = cell => `${cell.row},${cell.column}`;
+const open = (row, column) => row >= 0 && row < rows && column >= 0 && column < columns && maze[row][column] !== '#';
+const neighbors = cell => [[-1,0],[1,0],[0,-1],[0,1]].map(([row, column]) => point(cell.row + row, cell.column + column)).filter(next => open(next.row, next.column));
+const same = (first, second) => first.row === second.row && first.column === second.column;
+const distance = (first, second) => Math.abs(first.row - second.row) + Math.abs(first.column - second.column);
+function buildPath(parents, end) { const path = []; let current = end; while (current) { path.unshift(current); current = parents.get(cellKey(current)); } return path.slice(1); }
+function search(start, target, type) { const frontier = [{ cell: start, cost: 0 }]; const parents = new Map([[cellKey(start), null]]); const costs = new Map([[cellKey(start), 0]]); while (frontier.length) { frontier.sort((first, second) => type === 'A*' ? first.cost + distance(first.cell, target) - second.cost - distance(second.cell, target) : 0); const current = type === 'DFS' ? frontier.pop().cell : frontier.shift().cell; if (same(current, target)) return buildPath(parents, current); neighbors(current).forEach(next => { const nextKey = cellKey(next); if (!parents.has(nextKey)) { parents.set(nextKey, current); costs.set(nextKey, costs.get(cellKey(current)) + 1); frontier.push({ cell: next, cost: costs.get(nextKey) }); } }); } return []; }
+function reset() { pellets = new Map(); maze.forEach((row, rowIndex) => [...row].forEach((cell, columnIndex) => { if (cell === '.' || cell === 'o') pellets.set(`${rowIndex},${columnIndex}`, cell === 'o' ? 2 : 1); })); pacman = { row: 13, column: 9, direction: [0, 0], nextDirection: [0, 0] }; ghosts = ghostBlueprints.slice(0, levels[level].ghosts).map(ghost => ({ ...ghost, row: ghost.start[0], column: ghost.start[1] })); score = 0; lives = 3; frightened = 0; state = 'ready'; window.clearInterval(timer); updateHud(); showMessage('READY?', 'PLAY GAME'); draw(); }
+function showMessage(title, buttonText) { messageTitle.textContent = title; startButton.textContent = buttonText; message.classList.remove('hidden'); }
+function hideMessage() { message.classList.add('hidden'); }
+function updateHud() { scoreEl.textContent = String(score).padStart(6, '0'); highScoreEl.textContent = String(Math.max(score, highScore)).padStart(6, '0'); livesEl.textContent = lives ? '● '.repeat(lives).trim() : 'GAME OVER'; }
+function start() { if (state === 'playing') return; if (state === 'won' || state === 'lost') reset(); state = 'playing'; hideMessage(); updateHud(); timer = window.setInterval(tick, levels[level].speed); }
+function movePacman(direction) { if (state !== 'playing') return; pacman.nextDirection = direction; }
+function movePlayer() { const desired = point(pacman.row + pacman.nextDirection[0], pacman.column + pacman.nextDirection[1]); if (open(desired.row, desired.column)) pacman.direction = pacman.nextDirection; const next = point(pacman.row + pacman.direction[0], pacman.column + pacman.direction[1]); if (open(next.row, next.column)) { pacman.row = next.row; pacman.column = next.column; } const pellet = pellets.get(`${pacman.row},${pacman.column}`); if (pellet) { pellets.delete(`${pacman.row},${pacman.column}`); score += pellet === 2 ? 50 : 10; if (pellet === 2) frightened = 35; if (!pellets.size) endGame(true); } }
+function moveGhost(ghost) { if (frightened) { const choices = neighbors(ghost).filter(cell => !same(cell, pacman)); const choice = choices[Math.floor(Math.random() * choices.length)]; if (choice) Object.assign(ghost, choice); return; } const target = point(pacman.row, pacman.column); const path = search(point(ghost.row, ghost.column), target, ghost.algorithm); if (path[0]) Object.assign(ghost, path[0]); }
+function collisions() { ghosts.forEach(ghost => { if (ghost.row === pacman.row && ghost.column === pacman.column) { if (frightened) { score += 200; ghost.row = ghost.start[0]; ghost.column = ghost.start[1]; } else { lives--; if (lives) { pacman.row = 13; pacman.column = 9; pacman.direction = [0,0]; pacman.nextDirection = [0,0]; ghosts.forEach(resetGhost => { resetGhost.row = resetGhost.start[0]; resetGhost.column = resetGhost.start[1]; }); } else endGame(false); } } }); }
+function endGame(won) { window.clearInterval(timer); state = won ? 'won' : 'lost'; highScore = Math.max(highScore, score); localStorage.setItem('pacmanHighScore', highScore); updateHud(); showMessage(won ? 'YOU WIN!' : 'GAME OVER', 'PLAY AGAIN'); }
+function tick() { if (state !== 'playing') return; movePlayer(); ghosts.forEach(moveGhost); collisions(); if (frightened) frightened--; updateHud(); draw(); }
+function draw() { canvas.width = columns * cellSize; canvas.height = rows * cellSize; ctx.fillStyle = '#101b2a'; ctx.fillRect(0, 0, canvas.width, canvas.height); maze.forEach((row, rowIndex) => [...row].forEach((cell, columnIndex) => { if (cell === '#') { ctx.fillStyle = '#244b75'; ctx.fillRect(columnIndex * cellSize + 1, rowIndex * cellSize + 1, cellSize - 2, cellSize - 2); ctx.strokeStyle = '#3777a8'; ctx.strokeRect(columnIndex * cellSize + 4, rowIndex * cellSize + 4, cellSize - 8, cellSize - 8); } })); pellets.forEach((type, value) => { const [row, column] = value.split(',').map(Number); ctx.fillStyle = type === 2 ? '#efc658' : '#f5f1e8'; ctx.beginPath(); ctx.arc(column * cellSize + 12, row * cellSize + 12, type === 2 ? 5 : 2.5, 0, Math.PI * 2); ctx.fill(); }); drawPacman(); ghosts.forEach(drawGhost); }
+function drawPacman() { const x = pacman.column * cellSize + 12; const y = pacman.row * cellSize + 12; ctx.fillStyle = '#efc658'; ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.fill(); }
+function drawGhost(ghost) { const x = ghost.column * cellSize + 12; const y = ghost.row * cellSize + 12; ctx.fillStyle = frightened ? '#4774a4' : ghost.color; ctx.beginPath(); ctx.arc(x, y - 1, 9, Math.PI, 0); ctx.lineTo(x + 9, y + 8); ctx.lineTo(x + 4, y + 5); ctx.lineTo(x, y + 8); ctx.lineTo(x - 4, y + 5); ctx.lineTo(x - 9, y + 8); ctx.closePath(); ctx.fill(); }
+document.querySelectorAll('.level').forEach(button => button.addEventListener('click', () => { level = button.dataset.level; document.querySelectorAll('.level').forEach(item => item.classList.toggle('active', item === button)); reset(); }));
+window.addEventListener('keydown', event => { const direction = directions[event.key] || directions[event.key.toLowerCase()]; if (direction) { event.preventDefault(); movePacman(direction); } });
+startButton.addEventListener('click', start); reset();
